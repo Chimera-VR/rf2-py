@@ -690,9 +690,9 @@ class SubscribedBuffer(Enum):
         Weather = 128,
         All = 255
 
-class SimInfo:
+# Client Class
+class PodInfo:
     def __init__(self):
-
 
         self._rf2_tele = mmap.mmap(0, ctypes.sizeof(rF2Telemetry), "$rFactor2SMMP_Telemetry$")
         self.Rf2Tele = rF2Telemetry.from_buffer(self._rf2_tele)
@@ -713,13 +713,27 @@ class SimInfo:
     def __del__(self):
         self.close()
 
-if __name__ == '__main__':
-    # Example usage
-    info = SimInfo()
-    version = info.Rf2Ext.mVersion
-    v = bytes(version).partition(b'\0')[0].decode().rstrip()
-    clutch = info.Rf2Tele.mVehicles[0].mUnfilteredClutch # 1.0 clutch down, 0 clutch up
-    gear   = info.Rf2Tele.mVehicles[0].mGear  # -1 to 6
-    print('Map version: %s\n'
-          'Gear: %d, Clutch position: %d' % (v, gear, clutch))
 
+# Server Class
+class ServerInfo:
+    def __init__(self, pid):
+
+        # Shared memory buffers have the server PID appendded onto the name
+        self._rf2_tele = mmap.mmap(0, ctypes.sizeof(rF2Telemetry), "$rFactor2SMMP_Telemetry$" + pid)
+        self.Rf2Tele = rF2Telemetry.from_buffer(self._rf2_tele)
+        self._rf2_scor = mmap.mmap(0, ctypes.sizeof(rF2Scoring), "$rFactor2SMMP_Scoring$" + pid)
+        self.Rf2Scor = rF2Scoring.from_buffer(self._rf2_scor)
+        self._rf2_ext = mmap.mmap(0, ctypes.sizeof(rF2Extended), "$rFactor2SMMP_Extended$" + pid)
+        self.Rf2Ext = rF2Extended.from_buffer(self._rf2_ext)
+
+    def close(self):
+      # This didn't help with the errors
+      try:
+        self._rf2_tele.close()
+        self._rf2_scor.close()
+        self._rf2_ext.close()
+      except BufferError: # "cannot close exported pointers exist"
+        pass
+
+    def __del__(self):
+        self.close()

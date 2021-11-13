@@ -8,11 +8,29 @@ import psutil
 
 try:
     from . import rF2data
-except ImportError:  # standalone, not package
+except ImportError:
     import rF2data
 
+def Cbytestring2Python(bytestring):
+    """
+    C string to Python string
+    """
+    try:
+        return bytes(bytestring).partition(b'\0')[0].decode('utf_8').rstrip()
+    except BaseException:
+        pass
+    try:    # Codepage 1252 includes Scandinavian characters
+        return bytes(bytestring).partition(b'\0')[0].decode('cp1252').rstrip()
+    except BaseException:
+        pass
+    try:    # OK, struggling, just ignore errors
+        return bytes(bytestring).partition(b'\0')[
+            0].decode('utf_8', 'ignore').rstrip()
+    except Exception as e:
+        print('Trouble decoding a string')
+        print(e)
 
-class SimInfoAPI(rF2data.SimInfo):
+class Pod(rF2data.PodInfo):
     """
     API for rF2 shared memory
     """
@@ -27,7 +45,7 @@ class SimInfoAPI(rF2data.SimInfo):
     rf2_running = False
 
     def __init__(self):
-        rF2data.SimInfo.__init__(self)
+        rF2data.PodInfo.__init__(self)
         self.versionCheckMsg = self.versionCheck()
         self.__find_rf2_pid()
 
@@ -209,128 +227,3 @@ class SimInfoAPI(rF2data.SimInfo):
 
     def __del__(self):
         self.close()
-
-
-def Cbytestring2Python(bytestring):
-    """
-    C string to Python string
-    """
-    try:
-        return bytes(bytestring).partition(b'\0')[0].decode('utf_8').rstrip()
-    except BaseException:
-        pass
-    try:    # Codepage 1252 includes Scandinavian characters
-        return bytes(bytestring).partition(b'\0')[0].decode('cp1252').rstrip()
-    except BaseException:
-        pass
-    try:    # OK, struggling, just ignore errors
-        return bytes(bytestring).partition(b'\0')[
-            0].decode('utf_8', 'ignore').rstrip()
-    except Exception as e:
-        print('Trouble decoding a string')
-        print(e)
-
-
-def test_main():    # pylint: disable=too-many-statements
-    """ Example usage """
-    info = SimInfoAPI()
-    if info.isRF2running():
-        print('rfactor2.exe is running')
-        print(info.versionCheckMsg, '\n')
-        if info.isSharedMemoryAvailable():
-            print('Memory map is loaded')
-            version = Cbytestring2Python(info.Rf2Ext.mVersion)
-            # 2019/04/23:  3.5.0.9
-            print('Shared memory version:', version)
-
-            if info.isTrackLoaded():
-                trackName = Cbytestring2Python(
-                    info.Rf2Scor.mScoringInfo.mTrackName)
-                print('%s is loaded' % trackName)
-                if info.isOnTrack():
-                    driver = Cbytestring2Python(
-                        info.playersVehicleScoring().mDriverName)
-                    print('Driver "%s" is on track' % driver)
-                    clutch = info.playersVehicleTelemetry().mUnfilteredClutch
-                    # 1.0 clutch down, 0 clutch up
-
-                    driver = Cbytestring2Python(
-                        info.playersVehicleScoring().mDriverName)
-                    gear = info.playersVehicleTelemetry().mGear
-                    print('Driver: "%s", Gear: %d, Clutch position: %d' %
-                          (driver, gear, clutch))
-
-                    # Test that memory map can be poked
-                    info.playersVehicleTelemetry().mGear = 1
-                    gear = info.playersVehicleTelemetry().mGear  # -1 to 6
-                    assert info.playersVehicleTelemetry().mGear == 1
-                    info.playersVehicleTelemetry().mGear = 2
-                    assert info.playersVehicleTelemetry().mGear == 2
-                    gear = info.playersVehicleTelemetry().mGear  # -1 to 6
-                    info.playersVehicleTelemetry().mGear = 1
-                    assert info.playersVehicleTelemetry().mGear == 1
-
-                    _vehicleName = Cbytestring2Python(
-                        info.playersVehicleScoring().mVehicleName)
-                    _vehicleClass = Cbytestring2Python(
-                        info.playersVehicleScoring().mVehicleClass)
-
-                    print('vehicleName:', _vehicleName)
-                    print('vehicleClass:', _vehicleClass)
-
-                    started = info.Rf2Ext.mSessionStarted
-                    print('SessionStarted:', started)
-                    realtime = info.Rf2Ext.mInRealtimeFC
-                    print('InRealtimeFC:', realtime)
-                    if info.isAiDriving():
-                        print('AI is driving the car')
-                    else:
-                        print('Car not under AI control')
-                else:
-                    print('Driver is not on track')
-            else:
-                print('Track is not loaded')
-
-            print('\nBreaking the version string...')
-            info.Rf2Ext.mVersion[0] = 32
-
-            assert not info.isSharedMemoryAvailable()
-            print('\n' + info.versionCheck())
-            info.Rf2Ext.mVersion[0] = 51  # restore it
-
-            info.Rf2Ext.mVersion[0] = 50
-            assert not info.isSharedMemoryAvailable()
-            print('\n' + info.versionCheck())
-            info.Rf2Ext.mVersion[0] = 51  # restore it
-
-            info.Rf2Ext.mVersion[2] = 53
-            assert not info.isSharedMemoryAvailable()
-            print('\n' + info.versionCheck())
-            info.Rf2Ext.mVersion[2] = 54  # restore it
-
-            print('\nBreaking 64 bit info...')
-            info.Rf2Ext.is64bit = 0
-            assert not info.isSharedMemoryAvailable()
-            print(info.versionCheck())
-            info.Rf2Ext.is64bit = 1
-
-            print('\nPit Menu')
-            while True:
-                if info.Rf2PitMenu.changed:
-                    print(Cbytestring2Python(
-                        info.Rf2PitMenu.mCategoryName))
-                    info.Rf2PitMenu.changed = 0
-
-            print('\nOK')
-        else:
-            print('Incorrect shared memory')
-    else:
-        print('rFactor 2 not running')
-
-    s = bytearray(range(0xA1, 0xff))
-    print(Cbytestring2Python(s))
-    return 'OK'
-
-
-if __name__ == '__main__':
-    test_main()

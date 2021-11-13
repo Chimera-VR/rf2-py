@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29215.179
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "pyRfactor2SharedMemory", "pyRfactor2SharedMemory.pyproj", "{E3F461F0-82B5-4340-B875-4FBDDE85A2F0}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "rf2-py", "rf2-py.pyproj", "{E3F461F0-82B5-4340-B875-4FBDDE85A2F0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
