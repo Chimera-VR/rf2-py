@@ -45,7 +45,7 @@ def Cbytestring2Python(bytestring):
         print('Trouble decoding a string')
         print(e)
 
-class Pod(rF2data.ServerInfo):
+class Server(rF2data.ServerInfo):
     """
     API for rF2 shared memory
     """
